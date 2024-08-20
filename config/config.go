@@ -1,19 +1,20 @@
 package config
 
 import (
+	"os"
+
 	"gopkg.in/yaml.v2"
-	"io/os"
 )
 
 type Config struct {
-	OIDC  OIDCConfig  `yaml:"oidc"`
-	Slack SlackConfig `yaml:"slack"`
+	OIDC  OIDCConfig   `yaml:"oidc"`
+	Slack SlackConfig  `yaml:"slack"`
 	Tasks []TaskConfig `yaml:"tasks"`
 }
 
 type OIDCConfig struct {
-	ProviderURL string `yaml:"provider_url"`
-	ClientID    string `yaml:"client_id"`
+	ProviderURL  string `yaml:"provider_url"`
+	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
 }
 
