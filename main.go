@@ -18,10 +18,10 @@ func main() {
 	}
 
 	// Initialize authentication module
-	authModule := auth.NewAuthModule(cfg.OIDC)
+	authModule := auth.NewAuthModule(&cfg.OIDC)
 
 	// Initialize task manager
-	taskManager := tasks.NewTaskManager(cfg.Tasks, authModule)
+	taskManager := tasks.NewTaskManager(&cfg.Tasks, authModule)
 
 	// Initialize Slack client
 	slackClient := slack.NewClient(cfg.Slack.Token)

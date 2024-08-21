@@ -2,13 +2,13 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	devconfig "github.com/mrdankuta/aws-devops-api/config"
 	"golang.org/x/oauth2"
 )
 
@@ -17,7 +17,7 @@ type AuthModule struct {
 	tokenCache map[string]*oauth2.Token
 }
 
-func NewAuthModule(cfg OIDCConfig) *AuthModule {
+func NewAuthModule(cfg *devconfig.OIDCConfig) *AuthModule {
 	return &AuthModule{
 		oidcConfig: &oauth2.Config{
 			ClientID:     cfg.ClientID,

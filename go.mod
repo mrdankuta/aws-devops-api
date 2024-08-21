@@ -3,9 +3,11 @@ module github.com/mrdankuta/aws-devops-api
 go 1.22.6
 
 require (
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/aws-sdk-go-v2 v1.30.4
 	github.com/aws/aws-sdk-go-v2/config v1.10.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.6.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.40.4
 	github.com/aws/aws-sdk-go-v2/service/iam v1.35.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.19.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.10.0

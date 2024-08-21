@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mrdankuta/aws-devops-api/auth"
+	"github.com/mrdankuta/aws-devops-api/config"
 	"github.com/mrdankuta/aws-devops-api/services/iam"
 	"github.com/mrdankuta/aws-devops-api/services/s3"
 	"github.com/robfig/cron/v3"
@@ -26,13 +27,13 @@ type Task struct {
 	Execute      func() (string, error)
 }
 
-func NewTaskManager(taskConfigs []TaskConfig, authModule *auth.AuthModule) *TaskManager {
+func NewTaskManager(taskConfigs *[]config.TaskConfig, authModule *auth.AuthModule) *TaskManager {
 	tm := &TaskManager{
 		authModule: authModule,
 		cron:       cron.New(),
 	}
 
-	for _, cfg := range taskConfigs {
+	for _, cfg := range *taskConfigs {
 		schedule, err := cron.ParseStandard(cfg.Schedule)
 		if err != nil {
 			fmt.Printf("Error parsing schedule for task %s: %v\n", cfg.Name, err)
