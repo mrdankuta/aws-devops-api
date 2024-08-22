@@ -21,7 +21,8 @@ func NewCommand(command string, accounts []string, authModule *auth.AuthModule) 
 			if err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("Unused buckets: %v", unusedBuckets), nil
+			message := formatUnusedBucketsMessage(unusedBuckets)
+			return message, nil
 		default:
 			return "", fmt.Errorf("unknown S3 command: %s", command)
 		}
@@ -111,4 +112,15 @@ func getLastAccessTime(ctx context.Context, cwClient *cloudwatch.Client, bucketN
 
 	// Return the most recent last access time
 	return getMetricDataOutput.MetricDataResults[0].Timestamps[0], nil
+}
+
+func formatUnusedBucketsMessage(unusedBuckets map[string][]string) string {
+	message := "Unused S3 buckets (not accessed in the last month):\n"
+	for account, buckets := range unusedBuckets {
+		message += fmt.Sprintf("Account %s:\n", account)
+		for _, bucket := range buckets {
+			message += fmt.Sprintf("- %s\n", bucket)
+		}
+	}
+	return message
 }
