@@ -16,6 +16,7 @@ type OIDCConfig struct {
 	ProviderURL  string `yaml:"provider_url"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
+	RedirectURL  string `yaml:"redirect_url"`
 }
 
 type SlackConfig struct {

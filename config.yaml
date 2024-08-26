@@ -1,7 +1,8 @@
 oidc:
-  provider_url: "https://your-oidc-provider.com"
-  client_id: "your-client-id"
-  client_secret: "your-client-secret"
+  provider_url: "https://keycloak.rarefyconsulting.com/realms/master"
+  client_id: "awsdevopsapi"
+  client_secret: "Ceb2bGyg2KfPfE6JeY7J4oL37IcFE1AH"
+  redirect_url: "http://localhost:8080/auth/callback"
 
 slack:
   token: "your-slack-bot-token"
@@ -9,18 +10,16 @@ slack:
 tasks:
   - name: "Check Unused S3 Buckets"
     aws_accounts:
-      - "123456789012"
-      - "234567890123"
+      - "058264355882"
     service: "s3"
     command: "check_unused_buckets"
-    schedule: "0 0 * * *"  # Run daily at midnight
+    schedule: "0 0 * * *" # Run daily at midnight
     slack_channel: "#aws-notifications"
 
   - name: "List IAM Users"
     aws_accounts:
-      - "123456789012"
-      - "234567890123"
+      - "058264355882"
     service: "iam"
     command: "list_iam_users"
-    schedule: "0 12 * * MON"  # Run every Monday at noon
+    schedule: "0 12 * * MON" # Run every Monday at noon
     slack_channel: "#aws-notifications"

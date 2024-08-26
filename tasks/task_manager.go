@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mrdankuta/aws-devops-api/auth"
 	"github.com/mrdankuta/aws-devops-api/config"
 	"github.com/mrdankuta/aws-devops-api/services/iam"
@@ -12,12 +13,13 @@ import (
 )
 
 type TaskManager struct {
-	tasks      []Task
+	tasks      map[string]Task
 	authModule *auth.AuthModule
 	cron       *cron.Cron
 }
 
 type Task struct {
+	ID           string
 	Name         string
 	AWSAccounts  []string
 	Service      string
@@ -29,6 +31,7 @@ type Task struct {
 
 func NewTaskManager(taskConfigs *[]config.TaskConfig, authModule *auth.AuthModule) *TaskManager {
 	tm := &TaskManager{
+		tasks:      make(map[string]Task),
 		authModule: authModule,
 		cron:       cron.New(),
 	}
@@ -40,7 +43,9 @@ func NewTaskManager(taskConfigs *[]config.TaskConfig, authModule *auth.AuthModul
 			continue
 		}
 
+		taskID := uuid.New().String()
 		task := Task{
+			ID:           taskID,
 			Name:         cfg.Name,
 			AWSAccounts:  cfg.AWSAccounts,
 			Service:      cfg.Service,
@@ -59,14 +64,9 @@ func NewTaskManager(taskConfigs *[]config.TaskConfig, authModule *auth.AuthModul
 			continue
 		}
 
-		tm.tasks = append(tm.tasks, task)
+		tm.tasks[taskID] = task
 		tm.cron.Schedule(schedule, cron.FuncJob(func() {
-			result, err := task.Execute()
-			if err != nil {
-				fmt.Printf("Error executing task %s: %v\n", task.Name, err)
-			} else {
-				fmt.Printf("Task %s executed successfully: %s\n", task.Name, result)
-			}
+			tm.ExecuteTask(taskID)
 		}))
 	}
 
@@ -83,4 +83,33 @@ func (tm *TaskManager) GetDueTasks() []Task {
 		}
 	}
 	return dueTasks
+}
+
+func (tm *TaskManager) GetAllTasks() []Task {
+	tasks := make([]Task, 0, len(tm.tasks))
+	for _, task := range tm.tasks {
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
+func (tm *TaskManager) GetTask(id string) (Task, bool) {
+	task, exists := tm.tasks[id]
+	return task, exists
+}
+
+func (tm *TaskManager) ExecuteTask(id string) (string, error) {
+	task, exists := tm.tasks[id]
+	if !exists {
+		return "", fmt.Errorf("task with ID %s not found", id)
+	}
+
+	result, err := task.Execute()
+	if err != nil {
+		fmt.Printf("Error executing task %s: %v\n", task.Name, err)
+		return "", err
+	}
+
+	fmt.Printf("Task %s executed successfully: %s\n", task.Name, result)
+	return result, nil
 }
