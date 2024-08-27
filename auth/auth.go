@@ -73,45 +73,75 @@ func (am *AuthModule) GetAuthorizationURL(state string) string {
 	return am.oidcConfig.AuthCodeURL(state)
 }
 
-func (am *AuthModule) HandleCallback(ctx context.Context, code, state string) (*oauth2.Token, error) {
-	// Verify state
-	if _, ok := am.stateStore.Load(state); !ok {
-		return nil, errors.New("invalid state parameter")
+func (am *AuthModule) StartOIDCFlow(w http.ResponseWriter, r *http.Request) {
+	state, _ := generateRandomState()
+	nonce, _ := generateRandomNonce()
+
+	// Store state and nonce (you might want to use a secure session store instead of the stateStore)
+	am.stateStore.Store(state, nonce)
+
+	// Redirect to Keycloak login
+	authURL := am.oidcConfig.AuthCodeURL(state, oidc.Nonce(nonce))
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (am *AuthModule) HandleCallback(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	code := r.URL.Query().Get("code")
+
+	storedNonce, ok := am.stateStore.Load(state)
+	if !ok {
+		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
+		return
 	}
 	am.stateStore.Delete(state)
 
-	// Exchange code for token
-	token, err := am.oidcConfig.Exchange(ctx, code)
+	token, err := am.oidcConfig.Exchange(r.Context(), code)
 	if err != nil {
-		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
+		http.Error(w, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	// Verify ID token
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return nil, errors.New("no id_token in token response")
-	}
-	idToken, err := am.verifier.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify ID token: %w", err)
+		http.Error(w, "No id_token in token response", http.StatusInternalServerError)
+		return
 	}
 
-	// Extract claims
+	idToken, err := am.verifier.Verify(r.Context(), rawIDToken)
+	if err != nil {
+		http.Error(w, "Failed to verify ID token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if idToken.Nonce != storedNonce.(string) {
+		http.Error(w, "Invalid nonce", http.StatusBadRequest)
+		return
+	}
+
 	var claims struct {
 		Email string `json:"email"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("failed to extract claims: %w", err)
+		http.Error(w, "Failed to extract claims: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	// Store token in cache
 	encryptedToken, err := am.encryptToken(token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt token: %w", err)
+		http.Error(w, "Failed to encrypt token: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 	am.tokenCache.Store(claims.Email, tokenCacheEntry{Token: encryptedToken, AccountID: claims.Email})
 
-	return token, nil
+	// Redirect to a success page or return a success message
+	fmt.Fprintf(w, "Authentication successful for %s", claims.Email)
+}
+
+func (am *AuthModule) HasValidToken(accountID string) bool {
+	// TODO: This is a simplified check. Implement proper token validation.
+	_, err := am.getOIDCToken(context.Background(), accountID)
+	return err == nil
 }
 
 // CustomTokenRetriever implements the stscreds.IdentityTokenRetriever interface
@@ -126,6 +156,8 @@ func (ctr CustomTokenRetriever) GetIdentityToken() ([]byte, error) {
 func (am *AuthModule) GetAWSConfig(ctx context.Context, accountID, roleARN string) (aws.Config, error) {
 	token, err := am.getOIDCToken(ctx, accountID)
 	if err != nil {
+		// TODO: Instead of returning an error, you might want to trigger the authentication flow here
+		// For now, we'll just return the error
 		return aws.Config{}, fmt.Errorf("failed to get OIDC token: %w", err)
 	}
 

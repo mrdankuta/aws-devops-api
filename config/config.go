@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -43,5 +44,19 @@ func Load(filename string) (*Config, error) {
 		return nil, err
 	}
 
+	fmt.Printf("Loaded configuration with %d tasks\n", len(config.Tasks))
+    for i, task := range config.Tasks {
+        fmt.Printf("Task %d: Name=%s, Service=%s\n", i, task.Name, task.Service)
+    }
+
 	return &config, nil
+}
+
+func Save(filename string, cfg *Config) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filename, data, 0644)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/mrdankuta/aws-devops-api/auth"
+	"github.com/sirupsen/logrus"
 )
 
 func NewCommand(command string, accounts []string, authModule *auth.AuthModule) func() (string, error) {
@@ -29,18 +30,63 @@ func NewCommand(command string, accounts []string, authModule *auth.AuthModule) 
 	}
 }
 
+var log = logrus.New()
+
+func init() {
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetLevel(logrus.DebugLevel)
+}
+
+// func checkUnusedBuckets(ctx context.Context, authModule *auth.AuthModule, accounts []string) (map[string][]string, error) {
+// 	unusedBuckets := make(map[string][]string)
+
+// 	for _, account := range accounts {
+// 		lastAccessTimes, err := getLastAccessTimes(ctx, authModule, account)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("error getting last access times for account %s: %w", account, err)
+// 		}
+
+// 		for bucket, lastAccessTime := range lastAccessTimes {
+// 			// if time.Since(lastAccessTime) > 30*24*time.Hour {
+// 			if time.Since(lastAccessTime) > 2*time.Minute {
+// 				unusedBuckets[account] = append(unusedBuckets[account], bucket)
+// 			}
+// 		}
+// 	}
+
+// 	return unusedBuckets, nil
+// }
+
 func checkUnusedBuckets(ctx context.Context, authModule *auth.AuthModule, accounts []string) (map[string][]string, error) {
 	unusedBuckets := make(map[string][]string)
 
 	for _, account := range accounts {
+		log.WithField("account", account).Debug("Checking account for unused buckets")
+
 		lastAccessTimes, err := getLastAccessTimes(ctx, authModule, account)
 		if err != nil {
+			log.WithFields(logrus.Fields{
+				"account": account,
+				"error":   err,
+			}).Error("Error getting last access times")
 			return nil, fmt.Errorf("error getting last access times for account %s: %w", account, err)
 		}
 
 		for bucket, lastAccessTime := range lastAccessTimes {
-			if time.Since(lastAccessTime) > 30*24*time.Hour {
+			log.WithFields(logrus.Fields{
+				"account":        account,
+				"bucket":         bucket,
+				"lastAccessTime": lastAccessTime,
+			}).Debug("Checking bucket last access time")
+
+			if time.Since(lastAccessTime) > 2*time.Minute {
 				unusedBuckets[account] = append(unusedBuckets[account], bucket)
+				log.WithFields(logrus.Fields{
+					"account": account,
+					"bucket":  bucket,
+				}).Info("Found unused bucket")
 			}
 		}
 	}
@@ -97,8 +143,10 @@ func getLastAccessTime(ctx context.Context, cwClient *cloudwatch.Client, bucketN
 				},
 			},
 		},
-		StartTime: aws.Time(time.Now().Add(-24 * time.Hour)),
+		StartTime: aws.Time(time.Now().Add(-10 * time.Minute)), // Look at the last 10 minutes
 		EndTime:   aws.Time(time.Now()),
+		// StartTime: aws.Time(time.Now().Add(-24 * time.Hour)),
+		// EndTime:   aws.Time(time.Now()),
 	}
 
 	getMetricDataOutput, err := cwClient.GetMetricData(ctx, getMetricDataInput)

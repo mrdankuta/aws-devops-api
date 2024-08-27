@@ -1,8 +1,8 @@
 oidc:
-  provider_url: "https://keycloak.example.com/realms/master"
-  client_id: "client-id"
-  client_secret: "xxxxxxxxxxxxxxxxx"
-  redirect_url: "http://example.com/auth/callback"
+  provider_url: "https://keycloak.rarefyconsulting.com/realms/master"
+  client_id: "awsdevopsapi"
+  client_secret: "Ceb2bGyg2KfPfE6JeY7J4oL37IcFE1AH"
+  redirect_url: "http://localhost:9090/auth/callback"
 
 slack:
   token: "your-slack-bot-token"
@@ -10,7 +10,7 @@ slack:
 tasks:
   - name: "Check Unused S3 Buckets"
     aws_accounts:
-      - "000000000000"
+      - "058264355882"
     service: "s3"
     command: "check_unused_buckets"
     schedule: "*/5 * * * *" # Run every 5 minutes
@@ -18,7 +18,7 @@ tasks:
 
   - name: "List IAM Users"
     aws_accounts:
-      - "000000000000"
+      - "058264355882"
     service: "iam"
     command: "list_iam_users"
     schedule: "*/5 * * * *" # Run every 5 minutes

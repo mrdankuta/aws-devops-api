@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,11 +10,22 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/mrdankuta/aws-devops-api/api"
 	"github.com/mrdankuta/aws-devops-api/auth"
 	"github.com/mrdankuta/aws-devops-api/config"
 	"github.com/mrdankuta/aws-devops-api/slack"
 	"github.com/mrdankuta/aws-devops-api/tasks"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
+
+func init() {
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetLevel(logrus.DebugLevel)
+}
 
 func main() {
 	// Load configuration
@@ -31,13 +42,19 @@ func main() {
 
 	// Initialize task manager
 	taskManager := tasks.NewTaskManager(&cfg.Tasks, authModule)
+	fmt.Printf("TaskManager created with %d tasks\n", len(taskManager.GetAllTasks()))
 
 	// Initialize Slack client
 	slackClient := slack.NewClient(cfg.Slack.Token)
 
+	// Initialize API
+	api := api.NewAPI(cfg, authModule, taskManager)
+
 	// Set up HTTP router
 	router := mux.NewRouter()
-	authModule.SetupRoutes(router)
+	api.SetupRoutes(router)
+	// authModule.SetupRoutes(router)
+	// apiHandler.SetupRoutes(router)
 
 	// Set up HTTP server
 	srv := &http.Server{
@@ -52,6 +69,8 @@ func main() {
 			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
+
+	log.Info("Starting application")
 
 	// Start task execution loop
 	go func() {
@@ -79,13 +98,34 @@ func main() {
 func executeTasks(tm *tasks.TaskManager, sc *slack.Client) {
 	for _, task := range tm.GetDueTasks() {
 		go func(t tasks.Task) {
+			log.WithFields(logrus.Fields{
+				"taskID":   t.ID,
+				"taskName": t.Name,
+			}).Debug("Executing task")
+
 			result, err := t.Execute()
 			if err != nil {
-				log.Printf("Error executing task %s: %v", t.Name, err)
+				log.WithFields(logrus.Fields{
+					"taskID":   t.ID,
+					"taskName": t.Name,
+					"error":    err,
+				}).Error("Error executing task")
 				return
 			}
+
+			log.WithFields(logrus.Fields{
+				"taskID":   t.ID,
+				"taskName": t.Name,
+				"result":   result,
+			}).Info("Task executed successfully")
+
 			if err := sc.PostMessage(t.SlackChannel, result); err != nil {
-				log.Printf("Error posting to Slack for task %s: %v", t.Name, err)
+				log.WithFields(logrus.Fields{
+					"taskID":       t.ID,
+					"taskName":     t.Name,
+					"slackChannel": t.SlackChannel,
+					"error":        err,
+				}).Error("Error posting to Slack")
 			}
 		}(task)
 	}
